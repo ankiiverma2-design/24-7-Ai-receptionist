@@ -1,0 +1,18 @@
+{
+  "name": "voxdesk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VoxDesk - 24/7 AI Voice Receptionist Platform (zero-dependency Node.js build)",
+  "type": "module",
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "start": "node --experimental-strip-types --no-warnings src/index.ts",
+    "dev": "node --experimental-strip-types --no-warnings --watch src/index.ts",
+    "seed": "node --experimental-strip-types --no-warnings src/scripts/seed.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}

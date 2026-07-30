@@ -7,9 +7,13 @@
 
 ## 1. Current state
 
-The GitHub repository is currently empty. It does not yet contain the application, product documents, deployment configuration, automated tests, or a production database.
+The working prototype application and the product documents (`docs/PRD.md`,
+`docs/ARCHITECTURE.md`, `docs/ROADMAP.md`) have now been imported into this
+repository (Phase 0, section 3). What the repository does **not** yet contain is
+deployment configuration, automated tests, a production database, real calendar/CRM
+integrations, production authentication, or billing.
 
-A working prototype and planning documents exist in the development workspace, but they are not yet versioned in this repository. The prototype currently includes:
+The prototype currently includes:
 
 - A Node.js/TypeScript server.
 - Twilio inbound and outbound call integration.
@@ -25,7 +29,7 @@ A working prototype and planning documents exist in the development workspace, b
 
 This means the immediate goal is **not** to claim the full SaaS is finished. The correct order is:
 
-1. Put the prototype and documents into this repository.
+1. ✅ Put the prototype and documents into this repository (done — see section 3).
 2. Deploy a secure staging instance.
 3. Complete one repeatable live inbound call.
 4. Replace prototype-only components with production systems.
@@ -827,11 +831,9 @@ The project reaches production readiness only when durable data, real integratio
 
 ## 20. Related documents
 
-Once the prototype and documents are imported into this repository, link them here:
+These documents are now part of the repository:
 
-- `docs/PRD.md` — product requirements and scope.
-- `docs/ARCHITECTURE.md` — system design and provider abstractions.
-- `docs/ROADMAP.md` — phased plan for the full-vision platform.
-- `README.md` — local setup, run instructions, and API overview.
-
-Until those files are committed to this repository, they live only in the development workspace and cannot be linked from GitHub.
+- [`docs/PRD.md`](docs/PRD.md) — product requirements and scope.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system design and provider abstractions.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — phased plan for the full-vision platform.
+- [`README.md`](README.md) — local setup, run instructions, and API overview.
