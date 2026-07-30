@@ -24,17 +24,21 @@ continue" handoff.
 - Billing: plan tiers, usage metering, plan-limit enforcement
 - Post-call worker: minute metering + LLM summary/sentiment
 - Analytics + usage API, browser dashboard
-- **33 automated tests, all passing**
+- **Google Calendar integration** (OAuth, real free/busy availability, event
+  create/cancel) behind a `CalendarProvider` interface + integration API
+- **40 automated tests, all passing**
 - Deployment: Dockerfile, render.yaml, GitHub Actions CI
 
-**Recently added:** Google Calendar integration (OAuth + real free/busy + event
-creation) behind a provider interface.
-
-**Not yet built (the remaining work — see section 5):** Outlook/Cal.com calendar
-adapters, CRM OAuth adapters, Stripe checkout (metering/limits exist; payment
-capture does not),
-vector KB retrieval, Postgres implementation, the no-code builder UI, self-hosted
-LiveKit path, and deeper observability/rate limiting.
+**Not yet built (the remaining work — see section 5), in priority order:**
+1. Stripe checkout (metering/limits exist; payment capture does not)
+2. Reschedule/cancel + booking confirmations (email/SMS)
+3. CRM sync adapters (HubSpot first)
+4. Outlook / Cal.com calendar adapters
+5. Postgres persistence
+6. Vector KB retrieval
+7. No-code builder UI
+8. Hardening: rate limiting, WebSocket auth binding, observability
+9. Self-hosted LiveKit path
 
 **Key property:** the app has **zero runtime dependencies** — it runs TypeScript
 directly on Node via type-stripping. No `npm install`, no build step.
@@ -87,14 +91,15 @@ src/
   billing/            # plans + usage metering + limit enforcement
   core/               # types, store (interface + in-memory + file), events, ids, validate
   providers/          # telephony (Twilio), voice (OpenAI Realtime), tts (ElevenLabs), llm router
+    calendar/         #   CalendarProvider: in-memory + Google (OAuth, free/busy) + registry
   agents/             # templates (22), schema, service (lifecycle)
   skills/             # booking, knowledgeBase, leadCapture, routing, tools (registry+dispatch)
   voice/              # instructions builder, orchestrator (Twilio<->OpenAI bridge)
   telephony/          # voice webhook (TwiML) + Twilio signature validation
-  api/                # REST routes, auth routes, analytics routes, text simulation
+  api/                # REST routes, auth, analytics, integrations, text simulation
   workers/            # webhook delivery, post-call summary/metering
   i18n/               # 58 languages
-test/                 # node:test suites (33 tests)
+test/                 # node:test suites (40 tests)
 ```
 
 **Design rule to preserve:** external capabilities sit behind interfaces
@@ -105,14 +110,19 @@ reaching into business logic.
 
 ## 4. Suggested order to continue
 
-1. Real calendar integration (highest product value after voice quality).
-2. Stripe checkout (turn the existing metering/limits into revenue).
-3. CRM sync (HubSpot first).
-4. Postgres persistence (before onboarding real customer volume).
-5. Vector KB retrieval (answer quality).
-6. No-code builder UI (self-serve).
-7. Observability + rate limiting + WS auth binding (hardening).
-8. Self-hosted LiveKit path (margin/control at scale).
+Google Calendar is done, so the next highest-value work is monetization + booking
+lifecycle:
+
+1. ✅ ~~Google Calendar integration~~ — done.
+2. **Stripe checkout** (turn the existing metering/limits into revenue).
+3. **Reschedule/cancel + confirmations** (email/SMS) to complete the booking loop.
+4. **CRM sync** (HubSpot first).
+5. **Outlook / Cal.com** calendar adapters (same interface as Google).
+6. **Postgres persistence** (before onboarding real customer volume).
+7. **Vector KB retrieval** (answer quality).
+8. **No-code builder UI** (self-serve).
+9. **Hardening:** observability + rate limiting + WS auth binding.
+10. **Self-hosted LiveKit** path (margin/control at scale).
 
 ---
 
@@ -131,8 +141,19 @@ and the phased plan live in [NEXT_STEPS.md](NEXT_STEPS.md).
   Google OAuth URL/callback/manual connect). Env: `GOOGLE_CLIENT_ID`,
   `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.
 - **Next:** add Outlook and Cal.com by implementing the same `CalendarProvider`
-  interface and registering them in `src/providers/calendar/index.ts`; add
-  reschedule support (cancel + create today).
+  interface and registering them in `src/providers/calendar/index.ts`.
+
+### 5.1a Reschedule / cancel + booking confirmations
+- **Where:** `src/skills/booking.ts` (+ a new `messaging` provider), `Appointment`
+  type already stores `externalId` for Google events.
+- **Steps:**
+  1. Add `rescheduleAppointment` (cancel external event + create new) and
+     `cancelAppointment` (call `provider.cancelEvent`, set status `cancelled`).
+  2. Expose them as agent tools (`reschedule_appointment`, `cancel_appointment`)
+     in `src/skills/tools.ts` so the AI can handle them mid-call.
+  3. Add a `MessagingProvider` (Twilio SMS + email) and send a confirmation on
+     `appointment.booked` from a worker (never block the call path).
+- **Env:** reuse Twilio creds for SMS; add an email provider key if used.
 
 ### 5.2 Stripe checkout + subscriptions
 - **Where:** `src/billing/` (plans + usage + limits already exist). Add
