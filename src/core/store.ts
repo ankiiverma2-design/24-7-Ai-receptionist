@@ -20,6 +20,7 @@ import type {
   ApiKey,
   Appointment,
   Call,
+  Integration,
   Invitation,
   Lead,
   Organization,
@@ -37,6 +38,7 @@ export interface Store {
   sessions: Repository<Session>;
   apiKeys: Repository<ApiKey>;
   invitations: Repository<Invitation>;
+  integrations: Repository<Integration>;
   usage: Repository<UsageRecord>;
   agents: Repository<Agent>;
   numbers: Repository<PhoneNumber>;
@@ -123,6 +125,7 @@ const COLLECTIONS = [
   'sessions',
   'apiKeys',
   'invitations',
+  'integrations',
   'usage',
   'agents',
   'numbers',

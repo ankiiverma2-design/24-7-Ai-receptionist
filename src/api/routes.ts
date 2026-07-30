@@ -23,6 +23,7 @@ import type { PhoneNumber, Voice, WebhookSubscription } from '../core/types.ts';
 import { runTextSimulation } from './simulate.ts';
 import { registerAuthRoutes } from './authRoutes.ts';
 import { registerAnalyticsRoutes } from './analyticsRoutes.ts';
+import { registerIntegrationRoutes } from './integrationRoutes.ts';
 import { checkLimit } from '../billing/usage.ts';
 
 function limited(c: Ctx, resource: 'agent' | 'number' | 'outbound_call' | 'voice_clone'): string | null {
@@ -33,9 +34,10 @@ function limited(c: Ctx, resource: 'agent' | 'number' | 'outbound_call' | 'voice
 export function buildApiRouter(): Router {
   const r = new Router();
 
-  // ---- Auth + account + analytics ----
+  // ---- Auth + account + analytics + integrations ----
   registerAuthRoutes(r);
   registerAnalyticsRoutes(r);
+  registerIntegrationRoutes(r);
 
   // ---- Health ----
   r.get('/api/health', (c) => json(c.res, 200, { ok: true, ts: nowIso() }));

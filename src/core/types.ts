@@ -67,6 +67,19 @@ export interface Invitation {
   createdAt: ISODateTime;
 }
 
+/** A connected third-party integration (calendar, CRM, etc.) for an org. */
+export interface Integration {
+  id: ID;
+  orgId: ID;
+  type: 'google_calendar' | 'outlook_calendar' | 'calcom' | 'hubspot';
+  /** Provider-specific config/credentials (e.g. refreshToken, calendarId). */
+  config: Record<string, string>;
+  /** Optional: scope this integration to a single agent. */
+  agentId?: ID;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
 /** A metered usage record (e.g. call minutes) for billing. */
 export interface UsageRecord {
   id: ID;

@@ -35,7 +35,8 @@ needed; it runs directly from TypeScript via Node's built-in type-stripping.
 | 20+ industry templates | ✅ 22 templates |
 | 50+ languages | ✅ 58 languages |
 | No-code agent definition + validation | ✅ Implemented |
-| Appointment booking (in-memory calendar) | ✅ Implemented |
+| Appointment booking (in-memory + **Google Calendar** via OAuth) | ✅ Implemented |
+| Calendar integrations API (connect/list/disconnect) | ✅ Google (Outlook/Cal.com next) |
 | FAQ knowledge base (lexical retrieval + grounding) | ✅ Implemented |
 | Lead capture + scoring + qualification events | ✅ Implemented |
 | Routing / business hours / after-hours behavior | ✅ Implemented |
@@ -47,8 +48,8 @@ needed; it runs directly from TypeScript via Node's built-in type-stripping.
 | Web dashboard console | ✅ Implemented |
 | Multi-tenancy model (org-scoped data + repository interface) | ✅ In-memory; swap to Postgres via `Store` interface |
 
-**Scaffolded / next up (clear extension points):** real calendar adapters
-(Google/Outlook/Cal.com — the `in_memory` provider is functional now), Postgres
+**Scaffolded / next up (clear extension points):** additional calendar adapters
+(Outlook/Cal.com — Google is done; the `in_memory` provider remains the default fallback), Postgres
 persistence (implement the `Store` interface), Stripe billing/metering, the visual
 no-code builder UI (the definition schema + API it drives are done), vector-based
 KB retrieval, and self-hosted LiveKit realtime as a Twilio alternative. These are

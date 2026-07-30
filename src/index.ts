@@ -32,6 +32,7 @@ import { startPostCallWorker } from './workers/postCall.ts';
 import { seedDemo } from './bootstrap/seed.ts';
 import { resolveAuth } from './auth/middleware.ts';
 import { isValidTwilioSignature } from './telephony/twilioSignature.ts';
+import { handleGoogleCallback } from './api/integrationRoutes.ts';
 
 /** API paths that do not require authentication. */
 const PUBLIC_API_PATHS = new Set([
@@ -95,6 +96,12 @@ const server = http.createServer(async (req, res) => {
       }
       const ctx: Ctx = { req, res, params: {}, query: url.searchParams, body, orgId: DEFAULT_ORG_ID };
       return handleVoiceWebhook(ctx);
+    }
+
+    // ---- Google OAuth callback (browser redirect from Google, no bearer) ----
+    if (pathname === '/api/integrations/google/callback') {
+      const ctx: Ctx = { req, res, params: {}, query: url.searchParams, body: undefined, orgId: '' };
+      return await handleGoogleCallback(ctx);
     }
 
     // ---- REST API ----

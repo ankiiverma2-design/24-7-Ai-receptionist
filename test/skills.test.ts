@@ -13,17 +13,18 @@ const orgId = 'org_skills_test';
 store.organizations.create({ id: orgId, name: 'Skills', plan: 'pro', createdAt: nowIso() });
 const agent = createAgentFromTemplate(orgId, 'dental', 'Test Dental')!;
 
-test('availability returns weekday slots', () => {
-  const slots = getAvailability(agent);
+test('availability returns weekday slots', async () => {
+  const slots = await getAvailability(agent);
   assert.ok(slots.length > 0);
   assert.ok(new Date(slots[0].startsAt).getTime() > Date.now());
 });
 
-test('booking persists and emits', () => {
-  const slots = getAvailability(agent);
-  const appt = bookAppointment({ agent, service: 'Cleaning', startsAt: slots[0].startsAt });
-  assert.equal(appt.status, 'booked');
-  assert.ok(store.appointments.get(appt.id));
+test('booking persists and emits (in-memory provider)', async () => {
+  const slots = await getAvailability(agent);
+  const result = await bookAppointment({ agent, service: 'Cleaning', startsAt: slots[0].startsAt });
+  assert.equal(result.ok, true);
+  assert.ok(result.appointment && store.appointments.get(result.appointment.id));
+  assert.equal(result.appointment?.status, 'booked');
 });
 
 test('knowledge base grounds a match and refuses when none', () => {

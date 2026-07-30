@@ -27,8 +27,12 @@ continue" handoff.
 - **33 automated tests, all passing**
 - Deployment: Dockerfile, render.yaml, GitHub Actions CI
 
-**Not yet built (the remaining work — see section 5):** real calendar/CRM OAuth
-adapters, Stripe checkout (metering/limits exist; payment capture does not),
+**Recently added:** Google Calendar integration (OAuth + real free/busy + event
+creation) behind a provider interface.
+
+**Not yet built (the remaining work — see section 5):** Outlook/Cal.com calendar
+adapters, CRM OAuth adapters, Stripe checkout (metering/limits exist; payment
+capture does not),
 vector KB retrieval, Postgres implementation, the no-code builder UI, self-hosted
 LiveKit path, and deeper observability/rate limiting.
 
@@ -117,18 +121,18 @@ reaching into business logic.
 Each item lists **where** to work and the **concrete steps**. Acceptance criteria
 and the phased plan live in [NEXT_STEPS.md](NEXT_STEPS.md).
 
-### 5.1 Real calendar adapters — Google / Outlook / Cal.com
-- **Where:** `src/skills/booking.ts` (currently an in-memory calendar). Add
-  `src/providers/calendar/types.ts` + one file per provider.
-- **Steps:**
-  1. Define a `CalendarProvider` interface: `getAvailability`, `createEvent`,
-     `reschedule`, `cancel` (time-zone aware, idempotent).
-  2. Implement Google Calendar first (OAuth + token refresh).
-  3. Route by `agent.definition.booking.provider` in `bookAppointment`/`getAvailability`.
-  4. Do not tell the caller "booked" until the provider confirms; on failure,
-     capture the requested time and create a follow-up task.
-- **Env:** OAuth client id/secret + per-tenant stored tokens (store in the
-  `Integration` shape — extend the store).
+### 5.1 Real calendar adapters — Google ✅ done · Outlook / Cal.com (next)
+- **Done:** `CalendarProvider` interface (`src/providers/calendar/types.ts`),
+  shared slot math (`slots.ts`), in-memory + **Google Calendar** adapters
+  (OAuth flow, token refresh, free/busy availability, event create/cancel), a
+  registry (`resolveCalendar`) that routes by `agent.definition.booking.provider`
+  and falls back to in-memory, booking wired through it (only marks "booked"
+  after the provider confirms), and integration API (`/api/integrations/*` +
+  Google OAuth URL/callback/manual connect). Env: `GOOGLE_CLIENT_ID`,
+  `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`.
+- **Next:** add Outlook and Cal.com by implementing the same `CalendarProvider`
+  interface and registering them in `src/providers/calendar/index.ts`; add
+  reschedule support (cancel + create today).
 
 ### 5.2 Stripe checkout + subscriptions
 - **Where:** `src/billing/` (plans + usage + limits already exist). Add

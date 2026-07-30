@@ -123,21 +123,34 @@ export async function dispatchTool(
     }
 
     case 'get_availability': {
-      const slots = getAvailability(agent);
+      const slots = await getAvailability(agent);
       return { slots: slots.slice(0, 6) };
     }
 
     case 'book_appointment': {
       const lead = store.leads.find((l) => l.callId === call.id);
-      const appt = bookAppointment({
+      const result = await bookAppointment({
         agent,
         callId: call.id,
         leadId: lead?.id,
         service: String(args.service ?? agent.definition.booking.services[0] ?? 'Appointment'),
         startsAt: String(args.startsAt),
+        attendeeEmail: lead?.email,
+        attendeeName: lead?.name,
       });
+      if (!result.ok || !result.appointment) {
+        return {
+          booked: false,
+          note: 'The calendar could not be reached. Take the caller\'s details and promise a callback to confirm.',
+        };
+      }
       store.calls.update(call.id, { outcome: 'booked' });
-      return { booked: true, appointmentId: appt.id, startsAt: appt.startsAt };
+      return {
+        booked: true,
+        appointmentId: result.appointment.id,
+        startsAt: result.appointment.startsAt,
+        link: result.htmlLink,
+      };
     }
 
     case 'request_human': {

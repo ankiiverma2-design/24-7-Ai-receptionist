@@ -51,6 +51,10 @@ export const env = {
 
   elevenLabsApiKey: get('ELEVENLABS_API_KEY'),
 
+  googleClientId: get('GOOGLE_CLIENT_ID'),
+  googleClientSecret: get('GOOGLE_CLIENT_SECRET'),
+  googleRedirectUri: get('GOOGLE_REDIRECT_URI'),
+
   apiAdminToken: get('API_ADMIN_TOKEN', 'change-me-dev-token'),
 };
 
@@ -64,4 +68,8 @@ export function hasTwilio(): boolean {
 
 export function hasElevenLabs(): boolean {
   return Boolean(env.elevenLabsApiKey);
+}
+
+export function hasGoogle(): boolean {
+  return Boolean(env.googleClientId && env.googleClientSecret);
 }
