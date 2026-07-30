@@ -19,11 +19,63 @@ export interface Organization {
   plan: 'trial' | 'starter' | 'pro' | 'scale';
 }
 
+export type Role = 'owner' | 'admin' | 'member';
+
 export interface User {
   id: ID;
   orgId: ID;
   email: string;
-  role: 'owner' | 'admin' | 'member';
+  name?: string;
+  role: Role;
+  /** scrypt hash "salt:hash" (hex). Absent for invited-but-not-activated users. */
+  passwordHash?: string;
+  createdAt: ISODateTime;
+}
+
+/** A browser/API login session (bearer token). Only the token hash is stored. */
+export interface Session {
+  id: ID;
+  orgId: ID;
+  userId: ID;
+  tokenHash: string;
+  expiresAt: ISODateTime;
+  createdAt: ISODateTime;
+}
+
+/** A programmatic API key. Only a hash + a display prefix are stored. */
+export interface ApiKey {
+  id: ID;
+  orgId: ID;
+  name: string;
+  prefix: string;
+  tokenHash: string;
+  scopes: string[];
+  lastUsedAt?: ISODateTime;
+  createdAt: ISODateTime;
+  revokedAt?: ISODateTime;
+}
+
+/** An invitation for a user to join an organization. */
+export interface Invitation {
+  id: ID;
+  orgId: ID;
+  email: string;
+  role: Role;
+  tokenHash: string;
+  acceptedAt?: ISODateTime;
+  expiresAt: ISODateTime;
+  createdAt: ISODateTime;
+}
+
+/** A metered usage record (e.g. call minutes) for billing. */
+export interface UsageRecord {
+  id: ID;
+  orgId: ID;
+  /** Billing period key, e.g. "2026-07". */
+  period: string;
+  kind: 'call_minutes' | 'outbound_minutes' | 'voice_clone' | 'number';
+  quantity: number;
+  callId?: ID;
   createdAt: ISODateTime;
 }
 
@@ -170,6 +222,9 @@ export interface Call {
   cost?: number;
   provider: string;
   providerRef?: string;
+  /** Post-call intelligence (filled asynchronously after the call ends). */
+  summary?: string;
+  sentiment?: 'positive' | 'neutral' | 'negative';
 }
 
 export interface TranscriptTurn {

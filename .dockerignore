@@ -1,0 +1,11 @@
+.git
+node_modules
+dist
+*.log
+.env
+test
+docs
+NEXT_STEPS.md
+README.md
+data
+*.tmp

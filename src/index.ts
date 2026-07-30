@@ -28,7 +28,18 @@ import { handleVoiceWebhook } from './telephony/webhook.ts';
 import { acceptUpgrade } from './server/wsServer.ts';
 import { VoiceSession } from './voice/orchestrator.ts';
 import { startWebhookWorker } from './workers/webhooks.ts';
+import { startPostCallWorker } from './workers/postCall.ts';
 import { seedDemo } from './bootstrap/seed.ts';
+import { resolveAuth } from './auth/middleware.ts';
+import { isValidTwilioSignature } from './telephony/twilioSignature.ts';
+
+/** API paths that do not require authentication. */
+const PUBLIC_API_PATHS = new Set([
+  '/api/health',
+  '/api/auth/signup',
+  '/api/auth/login',
+  '/api/auth/accept-invite',
+]);
 
 const apiRouter = buildApiRouter();
 const PUBLIC_DIR = resolve(process.cwd(), 'public');
@@ -42,7 +53,10 @@ const MIME: Record<string, string> = {
 };
 
 function unauthorized(res: http.ServerResponse): void {
-  json(res, 401, { error: 'unauthorized', message: 'Provide Authorization: Bearer <API_ADMIN_TOKEN>' });
+  json(res, 401, {
+    error: 'unauthorized',
+    message: 'Provide Authorization: Bearer <session token, API key, or API_ADMIN_TOKEN>',
+  });
 }
 
 async function serveStatic(pathname: string, res: http.ServerResponse): Promise<void> {
@@ -61,26 +75,48 @@ const server = http.createServer(async (req, res) => {
     const pathname = url.pathname;
     const method = req.method ?? 'GET';
 
-    // ---- Twilio voice webhook (no bearer auth; Twilio-signed in production) ----
+    // ---- Twilio voice webhook (validated via X-Twilio-Signature, not bearer) ----
     if (pathname === '/telephony/voice') {
       const body = await parseBody(req);
+      const params = (body && typeof body === 'object') ? (body as Record<string, string>) : {};
+      if (env.twilioAuthToken && env.twilioValidateSignature) {
+        // Twilio signs the exact public URL it called (including query string).
+        const fullUrl = env.publicBaseUrl.replace(/\/$/, '') + (req.url ?? '');
+        const valid = isValidTwilioSignature(
+          env.twilioAuthToken,
+          fullUrl,
+          params,
+          req.headers['x-twilio-signature'] as string | undefined,
+        );
+        if (!valid) {
+          logger.warn('Rejected Twilio webhook: invalid signature');
+          return text(res, 403, 'Invalid signature');
+        }
+      }
       const ctx: Ctx = { req, res, params: {}, query: url.searchParams, body, orgId: DEFAULT_ORG_ID };
       return handleVoiceWebhook(ctx);
     }
 
     // ---- REST API ----
     if (pathname.startsWith('/api/')) {
-      // Public endpoints: health.
-      const isPublic = pathname === '/api/health';
-      if (!isPublic) {
-        const auth = req.headers['authorization'] ?? '';
-        if (auth !== `Bearer ${env.apiAdminToken}`) return unauthorized(res);
-      }
+      const isPublic = PUBLIC_API_PATHS.has(pathname);
+      const auth = isPublic ? null : resolveAuth(req);
+      if (!isPublic && !auth) return unauthorized(res);
+
       const match = apiRouter.match(method, pathname);
       if (!match) return notFound(res);
       const body = ['POST', 'PUT', 'PATCH'].includes(method) ? await parseBody(req) : undefined;
-      const orgId = (req.headers['x-org-id'] as string) || DEFAULT_ORG_ID;
-      const ctx: Ctx = { req, res, params: match.params, query: url.searchParams, body, orgId };
+      const ctx: Ctx = {
+        req,
+        res,
+        params: match.params,
+        query: url.searchParams,
+        body,
+        orgId: auth?.orgId ?? DEFAULT_ORG_ID,
+        userId: auth?.userId,
+        role: auth?.role,
+        via: auth?.via,
+      };
       return await match.handler(ctx);
     }
 
@@ -109,6 +145,7 @@ server.on('upgrade', (req, socket) => {
 // ---- Boot ----
 seedDemo();
 startWebhookWorker();
+startPostCallWorker();
 server.listen(env.port, () => {
   logger.info('VoxDesk listening', {
     port: env.port,

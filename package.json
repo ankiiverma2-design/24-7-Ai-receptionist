@@ -11,6 +11,7 @@
     "start": "node --experimental-strip-types --no-warnings src/index.ts",
     "dev": "node --experimental-strip-types --no-warnings --watch src/index.ts",
     "seed": "node --experimental-strip-types --no-warnings src/scripts/seed.ts",
+    "test": "node --experimental-strip-types --no-warnings --test test/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {},

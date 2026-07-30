@@ -1,0 +1,38 @@
+# Render.com blueprint for VoxDesk.
+# Deploys the zero-dependency Node app on a service that supports WebSockets
+# (required for Twilio Media Streams). Set the secret env vars in the Render
+# dashboard — never commit real values.
+services:
+  - type: web
+    name: voxdesk
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: starter
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: PUBLIC_BASE_URL
+        sync: false # set to your Render URL, e.g. https://voxdesk.onrender.com
+      - key: API_ADMIN_TOKEN
+        generateValue: true
+      - key: VOXDESK_DATA_FILE
+        value: /data/voxdesk.json
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_REALTIME_MODEL
+        value: gpt-4o-realtime-preview
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_CALLER_ID
+        sync: false
+      - key: ELEVENLABS_API_KEY
+        sync: false
+    disk:
+      # Persists the file-backed store across deploys/restarts.
+      name: voxdesk-data
+      mountPath: /data
+      sizeGB: 1

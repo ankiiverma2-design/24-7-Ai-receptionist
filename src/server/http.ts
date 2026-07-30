@@ -13,8 +13,19 @@ export interface Ctx {
   params: Record<string, string>;
   query: URLSearchParams;
   body: any;
-  /** Tenant scope resolved by auth (defaults to the demo org). */
+  /** Tenant scope resolved by auth. */
   orgId: string;
+  /** Authenticated user id, if the request used a user session. */
+  userId?: string;
+  /** Authenticated role within the org. */
+  role?: 'owner' | 'admin' | 'member';
+  /** How the request authenticated. */
+  via?: 'session' | 'api_key' | 'admin_token';
+}
+
+export function forbidden(res: ServerResponse, msg = 'Insufficient permissions'): void {
+  res.writeHead(403, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: 'forbidden', message: msg }));
 }
 
 export type Handler = (ctx: Ctx) => void | Promise<void>;

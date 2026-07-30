@@ -46,6 +46,8 @@ export const env = {
   twilioAccountSid: get('TWILIO_ACCOUNT_SID'),
   twilioAuthToken: get('TWILIO_AUTH_TOKEN'),
   twilioCallerId: get('TWILIO_CALLER_ID'),
+  /** Set to "false" to disable Twilio signature checks (not recommended). */
+  twilioValidateSignature: get('TWILIO_VALIDATE_SIGNATURE', 'true') !== 'false',
 
   elevenLabsApiKey: get('ELEVENLABS_API_KEY'),
 

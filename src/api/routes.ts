@@ -21,9 +21,21 @@ import { elevenLabsProvider } from '../providers/tts/elevenlabs.ts';
 import { env } from '../config/env.ts';
 import type { PhoneNumber, Voice, WebhookSubscription } from '../core/types.ts';
 import { runTextSimulation } from './simulate.ts';
+import { registerAuthRoutes } from './authRoutes.ts';
+import { registerAnalyticsRoutes } from './analyticsRoutes.ts';
+import { checkLimit } from '../billing/usage.ts';
+
+function limited(c: Ctx, resource: 'agent' | 'number' | 'outbound_call' | 'voice_clone'): string | null {
+  const check = checkLimit(c.orgId, resource);
+  return check.allowed ? null : check.reason;
+}
 
 export function buildApiRouter(): Router {
   const r = new Router();
+
+  // ---- Auth + account + analytics ----
+  registerAuthRoutes(r);
+  registerAnalyticsRoutes(r);
 
   // ---- Health ----
   r.get('/api/health', (c) => json(c.res, 200, { ok: true, ts: nowIso() }));
@@ -56,6 +68,8 @@ export function buildApiRouter(): Router {
   });
 
   r.post('/api/agents', (c) => {
+    const limit = limited(c, 'agent');
+    if (limit) return json(c.res, 402, { error: 'plan_limit', message: limit });
     // Two creation modes: from a template, or from a full definition.
     if (c.body?.templateId && !c.body?.definition) {
       const agent = createAgentFromTemplate(c.orgId, c.body.templateId, c.body.name);
@@ -115,6 +129,8 @@ export function buildApiRouter(): Router {
     const agent = agentId ? store.agents.get(agentId) : undefined;
     if (!agent || agent.orgId !== c.orgId) return badRequest(c.res, ['Unknown agentId']);
     if (!to) return badRequest(c.res, ['`to` phone number is required']);
+    const limit = limited(c, 'outbound_call');
+    if (limit) return json(c.res, 402, { error: 'plan_limit', message: limit });
     const callId = newId('call');
     store.calls.create({
       id: callId,
@@ -165,6 +181,8 @@ export function buildApiRouter(): Router {
   r.post('/api/numbers/provision', async (c) => {
     const { e164, agentId, country, type } = c.body ?? {};
     if (!e164) return badRequest(c.res, ['`e164` is required']);
+    const limit = limited(c, 'number');
+    if (limit) return json(c.res, 402, { error: 'plan_limit', message: limit });
     const voiceWebhook = `${env.publicBaseUrl}/telephony/voice${agentId ? `?agentId=${agentId}` : ''}`;
     try {
       const res = await twilioProvider.provisionNumber(e164, voiceWebhook);
@@ -209,6 +227,8 @@ export function buildApiRouter(): Router {
         'Voice cloning requires consent: { granted: true, grantedBy, method }.',
       ]);
     }
+    const limit = limited(c, 'voice_clone');
+    if (limit) return json(c.res, 402, { error: 'plan_limit', message: limit });
     try {
       const sample = Buffer.from(sampleBase64, 'base64');
       const result = await elevenLabsProvider.cloneVoice({
