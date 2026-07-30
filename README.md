@@ -15,6 +15,8 @@ needed; it runs directly from TypeScript via Node's built-in type-stripping.
 
 ## Start here
 
+- **[CONTINUE.md](CONTINUE.md)** — developer handoff: how to clone, run, deploy,
+  and continue the build on another platform, with the remaining work mapped to code.
 - **[NEXT_STEPS.md](NEXT_STEPS.md)** — the ordered process from the current state
   through the first live phone call and on to production readiness and launch.
 - **[docs/PRD.md](docs/PRD.md)** — product requirements and scope.
