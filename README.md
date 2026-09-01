@@ -74,10 +74,14 @@ cp .env.example .env      # fill in keys (optional for API/dashboard; required f
 npm start                 # boots on PORT (default 3000)
 ```
 
-Open the console: **http://localhost:3000/?token=YOUR_API_ADMIN_TOKEN**
+Open **http://localhost:3000** — landing page, then log in.
 
-On boot it seeds a demo org with two agents (a published "Bright Smile Dental" and
-"Cool Air HVAC"), so the API and dashboard are immediately usable.
+Demo workspace (seeded on first boot):
+
+- Email: `owner@demo.voxdesk.local`
+- Password: `DemoPass123`
+
+Or pass `?token=YOUR_API_ADMIN_TOKEN` to skip login. The console is a hash-routed SPA (`public/index.html`, `styles.css`, `app.js`) served by the same process — no frontend build step.
 
 ### Environment variables
 

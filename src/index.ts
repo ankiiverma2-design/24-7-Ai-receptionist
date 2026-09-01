@@ -63,10 +63,15 @@ function unauthorized(res: http.ServerResponse): void {
 
 async function serveStatic(pathname: string, res: http.ServerResponse): Promise<void> {
   const rel = pathname === '/' ? '/index.html' : pathname;
-  const filePath = join(PUBLIC_DIR, rel);
-  if (!filePath.startsWith(PUBLIC_DIR) || !existsSync(filePath)) return notFound(res);
+  let filePath = join(PUBLIC_DIR, rel);
+  // SPA fallback: client routes (login, app, etc.) serve the console.
+  if (!filePath.startsWith(PUBLIC_DIR)) return notFound(res);
+  if (!existsSync(filePath) || pathname === '/') {
+    if (pathname !== '/' && extname(pathname)) return notFound(res);
+    filePath = join(PUBLIC_DIR, 'index.html');
+  }
   const content = await readFile(filePath);
-  const type = MIME[extname(filePath)] ?? 'application/octet-stream';
+  const type = MIME[extname(filePath)] || (filePath.endsWith('index.html') ? 'text/html' : 'application/octet-stream');
   res.writeHead(200, { 'Content-Type': type });
   res.end(content);
 }
