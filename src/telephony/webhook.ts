@@ -11,7 +11,7 @@ import { text } from '../server/http.ts';
 import { store } from '../core/store.ts';
 import { newId, nowIso } from '../core/ids.ts';
 import { env } from '../config/env.ts';
-import { DEFAULT_ORG_ID } from '../config/constants.ts';
+import { issueStreamToken } from './streamToken.ts';
 
 function escapeXml(s: string): string {
   return s.replace(/[<>&'"]/g, (c) =>
@@ -68,8 +68,10 @@ export function handleVoiceWebhook(ctx: Ctx): void {
   }
 
   // Build the wss:// media-stream URL from the public base URL.
+  const streamToken = issueStreamToken(agent.id, callId);
   const wsUrl =
-    env.publicBaseUrl.replace(/^http/, 'ws').replace(/\/$/, '') + '/telephony/media';
+    env.publicBaseUrl.replace(/^http/, 'ws').replace(/\/$/, '') +
+    `/telephony/media?token=${encodeURIComponent(streamToken)}`;
 
   const twiml =
     '<?xml version="1.0" encoding="UTF-8"?>' +
@@ -78,6 +80,7 @@ export function handleVoiceWebhook(ctx: Ctx): void {
     `<Stream url="${escapeXml(wsUrl)}">` +
     `<Parameter name="agentId" value="${escapeXml(agent.id)}"/>` +
     `<Parameter name="callId" value="${escapeXml(callId)}"/>` +
+    `<Parameter name="streamToken" value="${escapeXml(streamToken)}"/>` +
     '</Stream>' +
     '</Connect>' +
     '</Response>';

@@ -13,34 +13,30 @@ continue" handoff.
 
 ## 1. Current status
 
-**Implemented, tested, and on `main`:**
+**Implemented, tested, and on `main` (plus this completion pass):**
 
 - Real-time voice loop: Twilio Media Streams ↔ OpenAI Realtime, with barge-in
-- Tools: FAQ lookup, lead capture, appointment booking, human escalation
+- Tools: FAQ lookup, lead capture, appointment book/reschedule/cancel, human escalation
 - 22 industry templates, 58 languages, validated agent-definition schema
 - Multi-tenant auth: signup/login/sessions, scoped API keys, invitations, roles
-- Durable file-backed store (survives restarts); same interface swaps to Postgres
-- Twilio webhook signature validation
-- Billing: plan tiers, usage metering, plan-limit enforcement
-- Post-call worker: minute metering + LLM summary/sentiment
-- Analytics + usage API, browser dashboard
-- **Google Calendar integration** (OAuth, real free/busy availability, event
-  create/cancel) behind a `CalendarProvider` interface + integration API
-- **40 automated tests, all passing**
+- Durable store: in-memory, JSON file, or SQLite (`VOXDESK_SQLITE_FILE`)
+- Twilio webhook signature validation + signed media-stream tokens
+- Billing: plan tiers, usage metering, Stripe checkout/portal/webhooks
+- Post-call worker + appointment confirmation worker (SMS/email) + HubSpot CRM worker
+- Analytics + usage API, browser dashboard with agent builder
+- Calendars: in-memory, Google, Outlook, Cal.com
+- Vector FAQ retrieval (TF-IDF cosine)
+- Rate limiting + request IDs
+- Automated tests (see `npm test`)
 - Deployment: Dockerfile, render.yaml, GitHub Actions CI
 
-**Not yet built (the remaining work — see section 5), in priority order:**
-1. Stripe checkout (metering/limits exist; payment capture does not)
-2. Reschedule/cancel + booking confirmations (email/SMS)
-3. CRM sync adapters (HubSpot first)
-4. Outlook / Cal.com calendar adapters
-5. Postgres persistence
-6. Vector KB retrieval
-7. No-code builder UI
-8. Hardening: rate limiting, WebSocket auth binding, observability
-9. Self-hosted LiveKit path
+**Not yet built (optional follow-ons):**
+- Hosted Postgres (schema at `src/db/schema.sql`; SQLite is the built-in SQL store)
+- Visual flow canvas (form-based builder is live)
+- Self-hosted LiveKit realtime (stub provider present)
+- Salesforce/Zoho/GHL CRM adapters (HubSpot is live)
 
-**Key property:** the app has **zero runtime dependencies** — it runs TypeScript
+**Key property:** the app has **zero runtime npm dependencies** — it runs TypeScript
 directly on Node via type-stripping. No `npm install`, no build step.
 
 ---
@@ -110,19 +106,13 @@ reaching into business logic.
 
 ## 4. Suggested order to continue
 
-Google Calendar is done, so the next highest-value work is monetization + booking
-lifecycle:
+The original remaining list is implemented. Sensible follow-ons if you keep going:
 
-1. ✅ ~~Google Calendar integration~~ — done.
-2. **Stripe checkout** (turn the existing metering/limits into revenue).
-3. **Reschedule/cancel + confirmations** (email/SMS) to complete the booking loop.
-4. **CRM sync** (HubSpot first).
-5. **Outlook / Cal.com** calendar adapters (same interface as Google).
-6. **Postgres persistence** (before onboarding real customer volume).
-7. **Vector KB retrieval** (answer quality).
-8. **No-code builder UI** (self-serve).
-9. **Hardening:** observability + rate limiting + WS auth binding.
-10. **Self-hosted LiveKit** path (margin/control at scale).
+1. Point Stripe price IDs + webhook at a live Stripe account.
+2. Connect a real Google/Outlook/Cal.com calendar and HubSpot private app.
+3. Deploy with `VOXDESK_SQLITE_FILE` (or apply `src/db/schema.sql` on Postgres).
+4. Replace the form builder with a visual flow canvas if operators need it.
+5. Benchmark a LiveKit self-hosted path before leaving OpenAI Realtime.
 
 ---
 

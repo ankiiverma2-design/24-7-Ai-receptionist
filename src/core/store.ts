@@ -4,17 +4,17 @@
  * Defines a `Store` interface (the repository contract) with two interchangeable
  * implementations:
  *   - in-memory (default): fast, ephemeral, great for dev/tests
- *   - file-backed (set VOXDESK_DATA_FILE): durable across restarts, zero external
- *     database required
+ *   - file-backed (set VOXDESK_DATA_FILE): durable JSON snapshot
+ *   - sqlite (set VOXDESK_SQLITE_FILE): SQL document table via node:sqlite
  *
- * Both share the same `Repository` implementation; the file store simply wires a
- * persistence callback and loads a snapshot on startup. Swapping to Postgres
- * later means implementing this same interface — no business-logic changes.
+ * All share the same `Repository` contract. Postgres can use the same document
+ * table (see src/db/schema.sql) without business-logic changes.
  *
  * Every collection is tenant-scoped by `orgId` on the entity; query helpers
  * enforce scoping so we never leak data across tenants.
  */
 import { readFileSync, writeFileSync, existsSync, renameSync } from 'node:fs';
+import { createSqliteStore } from './sqliteStore.ts';
 import type {
   Agent,
   ApiKey,
@@ -187,6 +187,10 @@ export function createFileStore(filePath: string): Store {
 }
 
 function selectStore(): Store {
+  const sqlite = process.env.VOXDESK_SQLITE_FILE;
+  if (sqlite) {
+    return createSqliteStore(sqlite);
+  }
   const file = process.env.VOXDESK_DATA_FILE;
   return file ? createFileStore(file) : createInMemoryStore();
 }

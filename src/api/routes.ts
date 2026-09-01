@@ -18,13 +18,15 @@ import {
 } from '../agents/service.ts';
 import { twilioProvider } from '../providers/telephony/twilio.ts';
 import { elevenLabsProvider } from '../providers/tts/elevenlabs.ts';
-import { env } from '../config/env.ts';
+import { env, hasOpenAI, hasTwilio, hasElevenLabs, hasGoogle, hasMicrosoft, hasStripe } from '../config/env.ts';
 import type { PhoneNumber, Voice, WebhookSubscription } from '../core/types.ts';
 import { runTextSimulation } from './simulate.ts';
 import { registerAuthRoutes } from './authRoutes.ts';
 import { registerAnalyticsRoutes } from './analyticsRoutes.ts';
 import { registerIntegrationRoutes } from './integrationRoutes.ts';
+import { registerBillingRoutes } from './billingRoutes.ts';
 import { checkLimit } from '../billing/usage.ts';
+import { cancelAppointment, rescheduleAppointment } from '../skills/booking.ts';
 
 function limited(c: Ctx, resource: 'agent' | 'number' | 'outbound_call' | 'voice_clone'): string | null {
   const check = checkLimit(c.orgId, resource);
@@ -38,9 +40,23 @@ export function buildApiRouter(): Router {
   registerAuthRoutes(r);
   registerAnalyticsRoutes(r);
   registerIntegrationRoutes(r);
+  registerBillingRoutes(r);
 
   // ---- Health ----
-  r.get('/api/health', (c) => json(c.res, 200, { ok: true, ts: nowIso() }));
+  r.get('/api/health', (c) =>
+    json(c.res, 200, {
+      ok: true,
+      ts: nowIso(),
+      providers: {
+        openai: hasOpenAI(),
+        twilio: hasTwilio(),
+        elevenlabs: hasElevenLabs(),
+        google: hasGoogle(),
+        microsoft: hasMicrosoft(),
+        stripe: hasStripe(),
+      },
+    }),
+  );
 
   // ---- Templates ----
   r.get('/api/templates', (c) =>
@@ -165,6 +181,30 @@ export function buildApiRouter(): Router {
   r.get('/api/appointments', (c) =>
     json(c.res, 200, { appointments: store.appointments.list(c.orgId) }),
   );
+
+  r.post('/api/appointments/:id/cancel', async (c) => {
+    const apt = store.appointments.get(c.params.id);
+    if (!apt || apt.orgId !== c.orgId) return notFound(c.res, 'Appointment not found');
+    const agentId = apt.agentId ?? (apt.callId ? store.calls.get(apt.callId)?.agentId : undefined);
+    const agent = agentId ? store.agents.get(agentId) : undefined;
+    if (!agent || agent.orgId !== c.orgId) return badRequest(c.res, ['Could not resolve agent for appointment']);
+    const result = await cancelAppointment(apt.id, agent);
+    if (!result.ok) return json(c.res, 502, { error: result.error ?? 'cancel_failed' });
+    return json(c.res, 200, result.appointment);
+  });
+
+  r.post('/api/appointments/:id/reschedule', async (c) => {
+    const apt = store.appointments.get(c.params.id);
+    if (!apt || apt.orgId !== c.orgId) return notFound(c.res, 'Appointment not found');
+    const startsAt = c.body?.startsAt;
+    if (!startsAt) return badRequest(c.res, ['`startsAt` is required']);
+    const agentId = apt.agentId ?? (apt.callId ? store.calls.get(apt.callId)?.agentId : undefined);
+    const agent = agentId ? store.agents.get(agentId) : undefined;
+    if (!agent || agent.orgId !== c.orgId) return badRequest(c.res, ['Could not resolve agent for appointment']);
+    const result = await rescheduleAppointment(apt.id, agent, String(startsAt));
+    if (!result.ok) return json(c.res, 502, { error: result.error ?? 'reschedule_failed' });
+    return json(c.res, 200, result.appointment);
+  });
 
   // ---- Phone numbers ----
   r.get('/api/numbers', (c) => json(c.res, 200, { numbers: store.numbers.list(c.orgId) }));

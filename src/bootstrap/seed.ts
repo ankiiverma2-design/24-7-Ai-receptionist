@@ -7,6 +7,10 @@ import { nowIso } from '../core/ids.ts';
 import { logger } from '../core/logger.ts';
 import { DEFAULT_ORG_ID, DEFAULT_USER_EMAIL } from '../config/constants.ts';
 import { createAgentFromTemplate, publishAgent } from '../agents/service.ts';
+import { hashPassword } from '../auth/passwords.ts';
+
+/** Demo console login (documented in README). Not for production. */
+export const DEMO_PASSWORD = 'DemoPass123';
 
 export function seedDemo(): void {
   if (store.organizations.get(DEFAULT_ORG_ID)) return;
@@ -21,7 +25,9 @@ export function seedDemo(): void {
     id: 'usr_demo',
     orgId: DEFAULT_ORG_ID,
     email: DEFAULT_USER_EMAIL,
+    name: 'Demo Owner',
     role: 'owner',
+    passwordHash: hashPassword(DEMO_PASSWORD),
     createdAt: nowIso(),
   });
 

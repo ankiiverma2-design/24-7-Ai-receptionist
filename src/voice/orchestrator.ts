@@ -23,6 +23,7 @@ import { connectRealtime, buildSessionUpdate } from '../providers/voice/openai-r
 import type { Agent, Call, Voice } from '../core/types.ts';
 import { buildTools, dispatchTool } from '../skills/tools.ts';
 import { buildInstructions } from './instructions.ts';
+import { verifyStreamToken } from '../telephony/streamToken.ts';
 
 export interface StartParams {
   agentId: string;
@@ -37,9 +38,11 @@ export class VoiceSession {
   private call: Call | null = null;
   /** Buffers tool-call argument fragments keyed by call_id. */
   private toolArgs = new Map<string, { name: string; args: string }>();
+  private queryToken?: string;
 
-  constructor(twilio: WsConnection) {
+  constructor(twilio: WsConnection, queryToken?: string) {
     this.twilio = twilio;
+    this.queryToken = queryToken;
     this.twilio.onMessage((data) => this.onTwilioMessage(data));
     this.twilio.onClose(() => this.finalize());
   }
@@ -71,6 +74,12 @@ export class VoiceSession {
     const params = start?.customParameters ?? {};
     const agentId = params.agentId;
     const callId = params.callId;
+    const token = params.streamToken || this.queryToken;
+    if (!verifyStreamToken(token, agentId, callId)) {
+      logger.warn('Rejected media stream: invalid stream token', { agentId, callId });
+      this.twilio.close();
+      return;
+    }
 
     this.agent = agentId ? store.agents.get(agentId) ?? null : null;
     this.call = callId ? store.calls.get(callId) ?? null : null;
