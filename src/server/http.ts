@@ -85,12 +85,16 @@ export function notFound(res: ServerResponse, msg = 'Not found'): void {
   json(res, 404, { error: 'not_found', message: msg });
 }
 
-/** Read and parse the request body (JSON or urlencoded). */
-export async function parseBody(req: IncomingMessage): Promise<any> {
+export async function parseRawBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(chunk as Buffer);
-  if (chunks.length === 0) return undefined;
-  const raw = Buffer.concat(chunks).toString('utf8');
+  return Buffer.concat(chunks).toString('utf8');
+}
+
+/** Read and parse the request body (JSON or urlencoded). */
+export async function parseBody(req: IncomingMessage): Promise<any> {
+  const raw = await parseRawBody(req);
+  if (!raw) return undefined;
   const type = req.headers['content-type'] ?? '';
   if (type.includes('application/json')) {
     try { return JSON.parse(raw); } catch { return undefined; }

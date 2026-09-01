@@ -36,7 +36,14 @@ needed; it runs directly from TypeScript via Node's built-in type-stripping.
 | 50+ languages | ✅ 58 languages |
 | No-code agent definition + validation | ✅ Implemented |
 | Appointment booking (in-memory + **Google Calendar** via OAuth) | ✅ Implemented |
-| Calendar integrations API (connect/list/disconnect) | ✅ Google (Outlook/Cal.com next) |
+| Outlook Calendar + Cal.com adapters | ✅ Implemented |
+| Reschedule / cancel + SMS/email confirmations | ✅ Implemented |
+| Stripe checkout + customer portal + webhooks | ✅ Implemented |
+| HubSpot CRM sync (leads + bookings) | ✅ Implemented |
+| SQL persistence (SQLite via `node:sqlite`; Postgres schema included) | ✅ Implemented |
+| Vector KB retrieval (TF-IDF cosine + lexical floor) | ✅ Implemented |
+| No-code agent builder (dashboard editor) | ✅ Implemented |
+| Rate limiting, media-stream auth binding, request IDs | ✅ Implemented |
 | FAQ knowledge base (lexical retrieval + grounding) | ✅ Implemented |
 | Lead capture + scoring + qualification events | ✅ Implemented |
 | Routing / business hours / after-hours behavior | ✅ Implemented |
@@ -48,12 +55,10 @@ needed; it runs directly from TypeScript via Node's built-in type-stripping.
 | Web dashboard console | ✅ Implemented |
 | Multi-tenancy model (org-scoped data + repository interface) | ✅ In-memory; swap to Postgres via `Store` interface |
 
-**Scaffolded / next up (clear extension points):** additional calendar adapters
-(Outlook/Cal.com — Google is done; the `in_memory` provider remains the default fallback), Postgres
-persistence (implement the `Store` interface), Stripe billing/metering, the visual
-no-code builder UI (the definition schema + API it drives are done), vector-based
-KB retrieval, and self-hosted LiveKit realtime as a Twilio alternative. These are
-sequenced in [NEXT_STEPS.md](NEXT_STEPS.md).
+**Scaffolded / next up:** a full visual flow-canvas (the schema + editor form are live),
+hosted Postgres instead of SQLite for multi-instance, and a self-hosted LiveKit
+realtime path (interface stub in `src/providers/telephony/livekit.ts`). Live
+OpenAI/Twilio/Stripe/calendar calls still need real provider keys.
 
 ---
 
@@ -84,6 +89,11 @@ On boot it seeds a demo org with two agents (a published "Bright Smile Dental" a
 | `TWILIO_CALLER_ID` | outbound caller ID | outbound calls |
 | `ELEVENLABS_API_KEY` | stock voices + cloning | voice cloning |
 | `PUBLIC_BASE_URL` | your public https URL (for the Twilio media-stream `wss://`) | live calls |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` / `GOOGLE_REDIRECT_URI` | Google Calendar OAuth | calendar |
+| `MICROSOFT_CLIENT_ID` / `SECRET` / `REDIRECT_URI` | Outlook Calendar OAuth | calendar |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_PRICE_*` | Billing | checkout |
+| `HUBSPOT_*` | CRM sync | optional |
+| `VOXDESK_SQLITE_FILE` or `VOXDESK_DATA_FILE` | Durable store | production |
 | `API_ADMIN_TOKEN` | bearer token for the REST API + dashboard | always |
 
 > Never commit real secrets. Use a managed secret store in staging/production —

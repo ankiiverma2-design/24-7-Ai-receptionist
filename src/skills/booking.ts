@@ -1,15 +1,9 @@
 /**
  * Booking skill.
  *
- * Availability and appointment creation route through the resolved calendar
- * provider (see providers/calendar). The in-memory provider is used when no real
- * calendar integration is connected, so booking always works; when a Google
- * Calendar integration is connected, availability reflects real free/busy and a
- * real calendar event is created.
- *
- * IMPORTANT: we only mark the internal Appointment as "booked" after the calendar
- * provider confirms the event, so we never tell a caller something is booked when
- * it isn't.
+ * Availability and appointment create/reschedule/cancel route through the
+ * resolved calendar provider. We only mark an Appointment booked after the
+ * calendar provider confirms the event.
  */
 import { store } from '../core/store.ts';
 import { newId, nowIso } from '../core/ids.ts';
@@ -34,13 +28,16 @@ function availabilityOptions(agent: Agent, days: number): AvailabilityOptions {
   };
 }
 
+function endsAt(startsAt: string, slotMinutes: number): string {
+  return new Date(new Date(startsAt).getTime() + slotMinutes * 60000).toISOString();
+}
+
 /** Get bookable slots from the agent's calendar provider (real or in-memory). */
 export async function getAvailability(agent: Agent, days = 5): Promise<AvailabilitySlot[]> {
   const { provider, creds } = resolveCalendar(agent);
   try {
     return await provider.getAvailability(creds, availabilityOptions(agent, days));
   } catch (e) {
-    // Degrade gracefully to in-memory slots if the external calendar errors.
     logger.warn('Calendar availability failed; falling back', {
       provider: provider.name,
       error: (e as Error).message,
@@ -58,6 +55,7 @@ export interface BookArgs {
   startsAt: string;
   attendeeEmail?: string;
   attendeeName?: string;
+  attendeePhone?: string;
 }
 
 export interface BookResult {
@@ -88,7 +86,6 @@ export async function bookAppointment(args: BookArgs): Promise<BookResult> {
     externalId = result.externalId;
     htmlLink = result.htmlLink;
   } catch (e) {
-    // Do NOT create a "booked" record if the real calendar rejected it.
     logger.warn('Calendar event creation failed', {
       provider: provider.name,
       error: (e as Error).message,
@@ -99,6 +96,7 @@ export async function bookAppointment(args: BookArgs): Promise<BookResult> {
   const appointment: Appointment = {
     id: newId('apt'),
     orgId: agent.orgId,
+    agentId: agent.id,
     callId: args.callId,
     leadId: args.leadId,
     service: args.service,
@@ -107,11 +105,98 @@ export async function bookAppointment(args: BookArgs): Promise<BookResult> {
     status: 'booked',
     timezone: agent.definition.booking.timezone,
     createdAt: nowIso(),
+    externalId,
+    attendeeEmail: args.attendeeEmail,
+    attendeeName: args.attendeeName,
+    attendeePhone: args.attendeePhone,
   };
-  // Persist provider event id for later reschedule/cancel, when present.
-  const stored = store.appointments.create(
-    externalId ? ({ ...appointment, externalId } as Appointment & { externalId: string }) : appointment,
-  );
+  const stored = store.appointments.create(appointment);
   eventBus.publish(agent.orgId, 'appointment.booked', stored);
   return { ok: true, appointment: stored, htmlLink };
 }
+
+export async function cancelAppointment(
+  appointmentId: string,
+  agent: Agent,
+): Promise<{ ok: boolean; appointment?: Appointment; error?: string }> {
+  const existing = store.appointments.get(appointmentId);
+  if (!existing || existing.orgId !== agent.orgId) {
+    return { ok: false, error: 'not_found' };
+  }
+  if (existing.status === 'cancelled') return { ok: true, appointment: existing };
+
+  const { provider, creds } = resolveCalendar(agent);
+  if (existing.externalId) {
+    try {
+      await provider.cancelEvent(creds, existing.externalId);
+    } catch (e) {
+      logger.warn('Calendar event cancel failed', {
+        provider: provider.name,
+        error: (e as Error).message,
+      });
+      return { ok: false, error: 'calendar_unavailable' };
+    }
+  }
+  const updated = store.appointments.update(appointmentId, { status: 'cancelled' });
+  if (updated) eventBus.publish(agent.orgId, 'appointment.cancelled', updated);
+  return { ok: true, appointment: updated };
+}
+
+export async function rescheduleAppointment(
+  appointmentId: string,
+  agent: Agent,
+  newStartsAt: string,
+): Promise<BookResult> {
+  const existing = store.appointments.get(appointmentId);
+  if (!existing || existing.orgId !== agent.orgId) {
+    return { ok: false, error: 'not_found' };
+  }
+  const slotMinutes = agent.definition.booking.slotMinutes || 30;
+  const start = new Date(newStartsAt);
+  const end = new Date(start.getTime() + slotMinutes * 60000);
+  const { provider, creds } = resolveCalendar(agent);
+
+  if (existing.externalId) {
+    try {
+      await provider.cancelEvent(creds, existing.externalId);
+    } catch (e) {
+      logger.warn('Calendar event cancel (reschedule) failed', {
+        provider: provider.name,
+        error: (e as Error).message,
+      });
+      return { ok: false, error: 'calendar_unavailable' };
+    }
+  }
+
+  let externalId: string | undefined;
+  let htmlLink: string | undefined;
+  try {
+    const result = await provider.createEvent(creds, {
+      service: existing.service,
+      startsAt: start.toISOString(),
+      endsAt: end.toISOString(),
+      timezone: existing.timezone,
+      attendeeEmail: existing.attendeeEmail,
+      attendeeName: existing.attendeeName,
+    });
+    externalId = result.externalId;
+    htmlLink = result.htmlLink;
+  } catch (e) {
+    logger.warn('Calendar event create (reschedule) failed', {
+      provider: provider.name,
+      error: (e as Error).message,
+    });
+    return { ok: false, error: 'calendar_unavailable' };
+  }
+
+  const updated = store.appointments.update(appointmentId, {
+    startsAt: start.toISOString(),
+    endsAt: end.toISOString(),
+    status: 'rescheduled',
+    externalId,
+  });
+  if (updated) eventBus.publish(agent.orgId, 'appointment.rescheduled', updated);
+  return { ok: true, appointment: updated, htmlLink };
+}
+
+export { endsAt };

@@ -55,6 +55,34 @@ export const env = {
   googleClientSecret: get('GOOGLE_CLIENT_SECRET'),
   googleRedirectUri: get('GOOGLE_REDIRECT_URI'),
 
+  microsoftClientId: get('MICROSOFT_CLIENT_ID'),
+  microsoftClientSecret: get('MICROSOFT_CLIENT_SECRET'),
+  microsoftRedirectUri: get('MICROSOFT_REDIRECT_URI'),
+  microsoftTenant: get('MICROSOFT_TENANT', 'common'),
+
+  calcomApiKey: get('CALCOM_API_KEY'),
+  calcomApiBase: get('CALCOM_API_BASE', 'https://api.cal.com/v1'),
+
+  hubspotClientId: get('HUBSPOT_CLIENT_ID'),
+  hubspotClientSecret: get('HUBSPOT_CLIENT_SECRET'),
+  hubspotRedirectUri: get('HUBSPOT_REDIRECT_URI'),
+
+  stripeSecretKey: get('STRIPE_SECRET_KEY'),
+  stripeWebhookSecret: get('STRIPE_WEBHOOK_SECRET'),
+  stripePriceStarter: get('STRIPE_PRICE_STARTER'),
+  stripePricePro: get('STRIPE_PRICE_PRO'),
+  stripePriceScale: get('STRIPE_PRICE_SCALE'),
+  stripeSuccessUrl: get('STRIPE_SUCCESS_URL'),
+  stripeCancelUrl: get('STRIPE_CANCEL_URL'),
+
+  resendApiKey: get('RESEND_API_KEY'),
+  emailFrom: get('EMAIL_FROM', 'VoxDesk <noreply@localhost>'),
+
+  streamSecret: get('STREAM_SECRET'),
+  /** Set to "false" to skip media-stream token checks (local only). */
+  streamAuth: get('STREAM_AUTH', 'true') !== 'false',
+  rateLimitPerMinute: Number(get('RATE_LIMIT_PER_MINUTE', '120')),
+
   apiAdminToken: get('API_ADMIN_TOKEN', 'change-me-dev-token'),
 };
 
@@ -72,4 +100,20 @@ export function hasElevenLabs(): boolean {
 
 export function hasGoogle(): boolean {
   return Boolean(env.googleClientId && env.googleClientSecret);
+}
+
+export function hasMicrosoft(): boolean {
+  return Boolean(env.microsoftClientId && env.microsoftClientSecret);
+}
+
+export function hasHubSpotOAuth(): boolean {
+  return Boolean(env.hubspotClientId && env.hubspotClientSecret);
+}
+
+export function hasStripe(): boolean {
+  return Boolean(env.stripeSecretKey);
+}
+
+export function hasResend(): boolean {
+  return Boolean(env.resendApiKey);
 }

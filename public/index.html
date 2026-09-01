@@ -5,28 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>VoxDesk — AI Receptionist Console</title>
     <style>
-      :root { --bg:#0e1116; --card:#171c26; --line:#252c3a; --fg:#e6e9ef; --mut:#8a93a6; --acc:#5b8cff; --ok:#3ecf8e; }
+      :root { --bg:#0e1116; --card:#171c26; --line:#252c3a; --fg:#e6e9ef; --mut:#8a93a6; --acc:#5b8cff; --ok:#3ecf8e; --bad:#ff6b6b; }
       * { box-sizing: border-box; }
       body { margin:0; font:14px/1.5 -apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--fg); }
-      header { padding:18px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; }
+      header { padding:18px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
       header h1 { font-size:18px; margin:0; }
       .tag { font-size:11px; color:var(--mut); border:1px solid var(--line); padding:2px 8px; border-radius:20px; }
+      nav { display:flex; gap:6px; padding:12px 24px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+      nav button { background:#0f141d; }
+      nav button.on { background:var(--acc); }
       main { max-width:1100px; margin:0 auto; padding:24px; display:grid; grid-template-columns:1fr 1fr; gap:16px; }
       .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
       .card h2 { font-size:13px; text-transform:uppercase; letter-spacing:.05em; color:var(--mut); margin:0 0 12px; }
       .full { grid-column:1 / -1; }
+      .hidden { display:none !important; }
       select, input, button, textarea { font:inherit; color:var(--fg); background:#0f141d; border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
       button { background:var(--acc); border:none; color:#fff; cursor:pointer; font-weight:600; }
       button.sec { background:#0f141d; border:1px solid var(--line); }
+      button.danger { background:var(--bad); }
       button:hover { opacity:.9; }
+      textarea { width:100%; min-height:90px; resize:vertical; }
+      label { display:block; font-size:12px; color:var(--mut); margin:8px 0 4px; }
       .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-      .list { max-height:260px; overflow:auto; }
+      .list { max-height:280px; overflow:auto; }
       .item { padding:8px 10px; border:1px solid var(--line); border-radius:8px; margin-bottom:6px; }
       .item b { color:var(--fg); } .item span { color:var(--mut); }
       .muted { color:var(--mut); }
       .chat { background:#0f141d; border:1px solid var(--line); border-radius:8px; padding:10px; height:220px; overflow:auto; margin-bottom:8px; }
       .msg { margin:4px 0; } .msg.user b { color:var(--acc); } .msg.assistant b { color:var(--ok); }
       code { background:#0f141d; padding:1px 5px; border-radius:4px; }
+      @media (max-width: 800px) { main { grid-template-columns:1fr; } }
     </style>
   </head>
   <body>
@@ -34,8 +42,14 @@
       <h1>VoxDesk</h1>
       <span class="tag">AI Receptionist Console</span>
       <span class="tag" id="health">checking…</span>
+      <span class="tag" id="planTag">plan…</span>
     </header>
-    <main>
+    <nav>
+      <button class="on" data-view="ops">Operations</button>
+      <button data-view="builder">Agent builder</button>
+      <button data-view="billing">Billing &amp; integrations</button>
+    </nav>
+    <main id="view-ops">
       <section class="card">
         <h2>1 · Create an agent from a template</h2>
         <div class="row">
@@ -44,13 +58,11 @@
         </div>
         <p class="muted" id="createMsg"></p>
       </section>
-
       <section class="card">
         <h2>2 · Your agents</h2>
         <div class="row"><button class="sec" id="refreshAgents">Refresh</button></div>
         <div class="list" id="agents"></div>
       </section>
-
       <section class="card full">
         <h2>3 · Test the selected agent (text simulation)</h2>
         <div class="row">
@@ -63,26 +75,125 @@
           <button id="send">Send</button>
         </div>
       </section>
-
       <section class="card">
         <h2>Recent calls</h2>
         <div class="row"><button class="sec" id="refreshCalls">Refresh</button></div>
         <div class="list" id="calls"></div>
       </section>
-
       <section class="card">
         <h2>Captured leads</h2>
         <div class="row"><button class="sec" id="refreshLeads">Refresh</button></div>
         <div class="list" id="leads"></div>
       </section>
+      <section class="card full">
+        <h2>Appointments</h2>
+        <div class="row"><button class="sec" id="refreshApts">Refresh</button></div>
+        <div class="list" id="apts"></div>
+      </section>
     </main>
-
+    <main id="view-builder" class="hidden">
+      <section class="card full">
+        <h2>No-code agent editor</h2>
+        <p class="muted">Edit the published schema (persona, greeting, FAQs, booking, routing), then save. Publish to go live. This is the same AgentDefinition the voice loop executes.</p>
+        <div class="row">
+          <select id="editAgent"></select>
+          <button class="sec" id="loadAgent">Load</button>
+          <button id="saveAgent">Save draft</button>
+          <button class="sec" id="publishAgent">Publish</button>
+        </div>
+        <p class="muted" id="builderMsg"></p>
+        <label>Name</label>
+        <input id="edName" style="width:100%" />
+        <label>Greeting</label>
+        <input id="edGreeting" style="width:100%" />
+        <label>Persona / instructions</label>
+        <textarea id="edPersona"></textarea>
+        <label>Qualifying questions (one per line)</label>
+        <textarea id="edQuestions"></textarea>
+        <label>Knowledge base (question | answer, one per line)</label>
+        <textarea id="edKb"></textarea>
+        <label>Bookable services (comma-separated)</label>
+        <input id="edServices" style="width:100%" />
+        <div class="row">
+          <div>
+            <label>Timezone</label>
+            <input id="edTz" />
+          </div>
+          <div>
+            <label>Slot minutes</label>
+            <input id="edSlots" type="number" />
+          </div>
+          <div>
+            <label>Calendar provider</label>
+            <select id="edCal">
+              <option value="in_memory">In-memory</option>
+              <option value="google">Google</option>
+              <option value="outlook">Outlook</option>
+              <option value="calcom">Cal.com</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+        </div>
+        <label>Languages (comma-separated BCP-47)</label>
+        <input id="edLangs" style="width:100%" />
+        <label>Transfer number (optional)</label>
+        <input id="edTransfer" style="width:100%" />
+      </section>
+    </main>
+    <main id="view-billing" class="hidden">
+      <section class="card">
+        <h2>Plan &amp; usage</h2>
+        <div id="usage" class="muted">Loading…</div>
+        <div class="row" style="margin-top:12px">
+          <select id="checkoutPlan">
+            <option value="starter">Starter</option>
+            <option value="pro">Pro</option>
+            <option value="scale">Scale</option>
+          </select>
+          <button id="checkout">Stripe checkout</button>
+          <button class="sec" id="portal">Customer portal</button>
+        </div>
+        <p class="muted" id="billingMsg"></p>
+      </section>
+      <section class="card">
+        <h2>Integrations</h2>
+        <div class="list" id="ints"></div>
+        <div class="row" style="margin-top:8px">
+          <button class="sec" id="googleAuth">Connect Google</button>
+          <button class="sec" id="outlookAuth">Connect Outlook</button>
+        </div>
+        <label>Cal.com API key</label>
+        <input id="calKey" placeholder="cal_live_…" />
+        <label>Cal.com event type id</label>
+        <input id="calEvent" placeholder="123456" />
+        <button class="sec" id="calConnect">Connect Cal.com</button>
+        <label>HubSpot private app token</label>
+        <input id="hsToken" placeholder="pat-…" />
+        <button class="sec" id="hsConnect">Connect HubSpot</button>
+        <p class="muted" id="intMsg"></p>
+      </section>
+      <section class="card full">
+        <h2>Analytics</h2>
+        <pre id="analytics" class="muted" style="white-space:pre-wrap"></pre>
+      </section>
+    </main>
     <script>
       const TOKEN = new URLSearchParams(location.search).get('token') || 'change-me-dev-token';
       const H = { 'Authorization': 'Bearer ' + TOKEN, 'Content-Type': 'application/json' };
       const api = (p, opts = {}) => fetch('/api' + p, { headers: H, ...opts }).then((r) => r.json());
       const el = (id) => document.getElementById(id);
       let simHistory = [];
+      let loaded = null;
+
+      document.querySelectorAll('nav button').forEach((b) => {
+        b.onclick = () => {
+          document.querySelectorAll('nav button').forEach((x) => x.classList.remove('on'));
+          b.classList.add('on');
+          ['ops','builder','billing'].forEach((v) => {
+            el('view-' + v).classList.toggle('hidden', b.dataset.view !== v);
+          });
+        };
+      });
 
       async function health() {
         try { const h = await api('/health'); el('health').textContent = h.ok ? 'online' : 'error'; }
@@ -92,12 +203,17 @@
         const { templates } = await api('/templates');
         el('template').innerHTML = templates.map((t) => `<option value="${t.id}">${t.name} — ${t.industry}</option>`).join('');
       }
+      function fillAgentSelects(agents) {
+        const opts = agents.map((a) => `<option value="${a.id}">${a.name}</option>`).join('');
+        el('simAgent').innerHTML = opts;
+        el('editAgent').innerHTML = opts;
+      }
       async function loadAgents() {
         const { agents } = await api('/agents');
         el('agents').innerHTML = agents.length ? agents.map((a) =>
           `<div class="item"><b>${a.name}</b> <span>· ${a.status} · v${a.version}</span><br><span>${a.id}</span>
            ${a.status !== 'live' ? `<br><button class="sec" data-pub="${a.id}">Publish</button>` : ''}</div>`).join('') : '<span class="muted">No agents yet.</span>';
-        el('simAgent').innerHTML = agents.map((a) => `<option value="${a.id}">${a.name}</option>`).join('');
+        fillAgentSelects(agents);
         document.querySelectorAll('[data-pub]').forEach((b) =>
           b.onclick = async () => { await api('/agents/' + b.dataset.pub + '/publish', { method: 'POST' }); loadAgents(); });
       }
@@ -111,6 +227,14 @@
         el('leads').innerHTML = leads.length ? leads.slice(-10).reverse().map((l) =>
           `<div class="item"><b>${l.name || 'Unknown'}</b> <span>· score ${l.score || 0}</span><br><span>${l.service || ''} ${l.phone || ''}</span></div>`).join('') : '<span class="muted">No leads yet.</span>';
       }
+      async function loadApts() {
+        const { appointments } = await api('/appointments');
+        el('apts').innerHTML = appointments.length ? appointments.slice(-15).reverse().map((a) =>
+          `<div class="item"><b>${a.service}</b> <span>· ${a.status}</span><br><span>${a.startsAt}</span>
+           ${a.status !== 'cancelled' ? `<br><button class="sec danger" data-cancel="${a.id}">Cancel</button>` : ''}</div>`).join('') : '<span class="muted">No appointments yet.</span>';
+        document.querySelectorAll('[data-cancel]').forEach((b) =>
+          b.onclick = async () => { await api('/appointments/' + b.dataset.cancel + '/cancel', { method: 'POST' }); loadApts(); });
+      }
 
       el('create').onclick = async () => {
         const templateId = el('template').value;
@@ -121,6 +245,7 @@
       el('refreshAgents').onclick = loadAgents;
       el('refreshCalls').onclick = loadCalls;
       el('refreshLeads').onclick = loadLeads;
+      el('refreshApts').onclick = loadApts;
 
       function renderChat() {
         el('chat').innerHTML = simHistory.map((m) => `<div class="msg ${m.role}"><b>${m.role === 'user' ? 'Caller' : 'Agent'}:</b> ${m.content}</div>`).join('');
@@ -134,11 +259,109 @@
         const agentId = el('simAgent').value;
         const res = await api('/agents/' + agentId + '/simulate', { method: 'POST', body: JSON.stringify({ messages: simHistory }) });
         simHistory.push({ role: 'assistant', content: res.reply || ('[' + (res.message || res.error || 'no reply') + ']') });
-        renderChat(); loadCalls(); loadLeads();
+        renderChat(); loadCalls(); loadLeads(); loadApts();
       };
       el('simAgent').onchange = () => { simHistory = []; renderChat(); };
 
-      health(); loadTemplates(); loadAgents(); loadCalls(); loadLeads();
+      el('loadAgent').onclick = async () => {
+        const a = await api('/agents/' + el('editAgent').value);
+        loaded = a;
+        const d = a.definition;
+        el('edName').value = a.name;
+        el('edGreeting').value = d.greeting;
+        el('edPersona').value = d.persona;
+        el('edQuestions').value = (d.qualifyingQuestions || []).join('\n');
+        el('edKb').value = (d.knowledgeBase || []).map((e) => e.question + ' | ' + e.answer).join('\n');
+        el('edServices').value = (d.booking.services || []).join(', ');
+        el('edTz').value = d.booking.timezone;
+        el('edSlots').value = d.booking.slotMinutes;
+        el('edCal').value = d.booking.provider;
+        el('edLangs').value = (d.languages || []).join(', ');
+        el('edTransfer').value = d.routing.transferNumber || '';
+        el('builderMsg').textContent = 'Loaded ' + a.name + ' v' + a.version;
+      };
+      el('saveAgent').onclick = async () => {
+        if (!loaded) return;
+        const kb = el('edKb').value.split('\n').filter(Boolean).map((line) => {
+          const i = line.indexOf('|');
+          return { question: (i >= 0 ? line.slice(0, i) : line).trim(), answer: (i >= 0 ? line.slice(i + 1) : '').trim() };
+        }).filter((e) => e.question && e.answer);
+        const definition = {
+          ...loaded.definition,
+          greeting: el('edGreeting').value,
+          persona: el('edPersona').value,
+          qualifyingQuestions: el('edQuestions').value.split('\n').map((s) => s.trim()).filter(Boolean),
+          knowledgeBase: kb,
+          languages: el('edLangs').value.split(',').map((s) => s.trim()).filter(Boolean),
+          booking: {
+            ...loaded.definition.booking,
+            enabled: el('edCal').value !== 'none',
+            provider: el('edCal').value === 'none' ? 'in_memory' : el('edCal').value,
+            services: el('edServices').value.split(',').map((s) => s.trim()).filter(Boolean),
+            timezone: el('edTz').value || 'UTC',
+            slotMinutes: Number(el('edSlots').value) || 30,
+          },
+          routing: {
+            ...loaded.definition.routing,
+            transferNumber: el('edTransfer').value || undefined,
+            transferEnabled: Boolean(el('edTransfer').value),
+          },
+        };
+        const res = await api('/agents/' + loaded.id, { method: 'PUT', body: JSON.stringify({ name: el('edName').value, definition }) });
+        el('builderMsg').textContent = res.id ? 'Saved v' + res.version : JSON.stringify(res);
+        loadAgents();
+      };
+      el('publishAgent').onclick = async () => {
+        if (!loaded) return;
+        await api('/agents/' + loaded.id + '/publish', { method: 'POST' });
+        el('builderMsg').textContent = 'Published';
+        loadAgents();
+      };
+
+      async function loadBilling() {
+        const s = await api('/billing/status');
+        el('planTag').textContent = 'plan ' + (s.plan || 'trial');
+        const u = s.usage || {};
+        el('usage').innerHTML = `<div>Plan <b>${s.plan}</b></div>
+          <div>Minutes used ${ (u.callMinutes||0) + (u.outboundMinutes||0) } / ${u.limits?.monthlyMinutes ?? '—'}</div>
+          <div>Agents ${u.agents ?? '—'} · numbers ${u.numbers ?? '—'}</div>`;
+        const an = await api('/analytics/summary');
+        el('analytics').textContent = JSON.stringify(an, null, 2);
+        const ints = await api('/integrations');
+        el('ints').innerHTML = (ints.integrations || []).length
+          ? ints.integrations.map((i) => `<div class="item"><b>${i.type}</b> <span>· ${i.connected ? 'connected' : 'incomplete'}</span></div>`).join('')
+          : '<span class="muted">No integrations yet.</span>';
+      }
+      el('checkout').onclick = async () => {
+        const res = await api('/billing/checkout', { method: 'POST', body: JSON.stringify({ plan: el('checkoutPlan').value }) });
+        if (res.url) location.href = res.url;
+        else el('billingMsg').textContent = res.message || res.error || JSON.stringify(res);
+      };
+      el('portal').onclick = async () => {
+        const res = await api('/billing/portal', { method: 'POST', body: '{}' });
+        if (res.url) location.href = res.url;
+        else el('billingMsg').textContent = res.message || res.error || JSON.stringify(res);
+      };
+      el('googleAuth').onclick = async () => {
+        const r = await api('/integrations/google/auth-url');
+        if (r.authUrl) location.href = r.authUrl; else el('intMsg').textContent = (r.details || [r.message || r.error]).join?.(', ') || JSON.stringify(r);
+      };
+      el('outlookAuth').onclick = async () => {
+        const r = await api('/integrations/outlook/auth-url');
+        if (r.authUrl) location.href = r.authUrl; else el('intMsg').textContent = (r.details || [r.message || r.error]).join?.(', ') || JSON.stringify(r);
+      };
+      el('calConnect').onclick = async () => {
+        const r = await api('/integrations/calcom/connect', { method: 'POST', body: JSON.stringify({ apiKey: el('calKey').value, eventTypeId: el('calEvent').value }) });
+        el('intMsg').textContent = r.id ? 'Cal.com connected' : JSON.stringify(r);
+        loadBilling();
+      };
+      el('hsConnect').onclick = async () => {
+        const r = await api('/integrations/hubspot/connect', { method: 'POST', body: JSON.stringify({ privateAppToken: el('hsToken').value }) });
+        el('intMsg').textContent = r.id ? 'HubSpot connected' : JSON.stringify(r);
+        loadBilling();
+      };
+
+      health(); loadTemplates(); loadAgents(); loadCalls(); loadLeads(); loadApts(); loadBilling();
     </script>
   </body>
 </html>

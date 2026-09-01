@@ -11,14 +11,20 @@ import type { Agent } from '../../core/types.ts';
 import type { CalendarCredentials, CalendarProvider } from './types.ts';
 import { inMemoryCalendar } from './inMemory.ts';
 import { googleCalendar } from './google.ts';
+import { outlookCalendar } from './outlook.ts';
+import { calcomCalendar } from './calcom.ts';
 
 const PROVIDERS: Record<string, CalendarProvider> = {
   in_memory: inMemoryCalendar,
   google: googleCalendar,
+  outlook: outlookCalendar,
+  calcom: calcomCalendar,
 };
 
 const INTEGRATION_TYPE: Record<string, string> = {
   google: 'google_calendar',
+  outlook: 'outlook_calendar',
+  calcom: 'calcom',
 };
 
 export interface ResolvedCalendar {
@@ -47,3 +53,5 @@ export function resolveCalendar(agent: Agent): ResolvedCalendar {
 
   return { provider: inMemoryCalendar, creds: {} };
 }
+
+export { PROVIDERS };

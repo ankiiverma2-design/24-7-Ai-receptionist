@@ -9,7 +9,7 @@ import type { RealtimeTool } from '../providers/voice/types.ts';
 import type { Agent, Call } from '../core/types.ts';
 import { store } from '../core/store.ts';
 import { nowIso } from '../core/ids.ts';
-import { getAvailability, bookAppointment } from './booking.ts';
+import { getAvailability, bookAppointment, rescheduleAppointment, cancelAppointment } from './booking.ts';
 import { searchKnowledgeBase } from './knowledgeBase.ts';
 import { captureLead } from './leadCapture.ts';
 import { decideEscalation } from './routing.ts';
@@ -78,6 +78,26 @@ export function buildTools(agent: Agent): RealtimeTool[] {
           required: ['service', 'startsAt'],
         },
       },
+      {
+        name: 'reschedule_appointment',
+        description: 'Move an existing appointment to a new time from get_availability.',
+        parameters: {
+          type: 'object',
+          properties: {
+            appointmentId: { type: 'string' },
+            startsAt: { type: 'string', description: 'New ISO 8601 start time' },
+          },
+          required: ['startsAt'],
+        },
+      },
+      {
+        name: 'cancel_appointment',
+        description: 'Cancel an existing appointment for this caller.',
+        parameters: {
+          type: 'object',
+          properties: { appointmentId: { type: 'string' } },
+        },
+      },
     );
   }
 
@@ -137,6 +157,7 @@ export async function dispatchTool(
         startsAt: String(args.startsAt),
         attendeeEmail: lead?.email,
         attendeeName: lead?.name,
+        attendeePhone: lead?.phone,
       });
       if (!result.ok || !result.appointment) {
         return {
@@ -151,6 +172,33 @@ export async function dispatchTool(
         startsAt: result.appointment.startsAt,
         link: result.htmlLink,
       };
+    }
+
+    case 'reschedule_appointment': {
+      const aptId =
+        String(args.appointmentId ?? '') ||
+        store.appointments.find((a) => a.callId === call.id && a.status !== 'cancelled')?.id;
+      if (!aptId) return { ok: false, note: 'No appointment found to reschedule.' };
+      const result = await rescheduleAppointment(aptId, agent, String(args.startsAt));
+      if (!result.ok || !result.appointment) {
+        return { ok: false, note: 'Could not reschedule. Offer a callback.' };
+      }
+      return {
+        ok: true,
+        appointmentId: result.appointment.id,
+        startsAt: result.appointment.startsAt,
+        link: result.htmlLink,
+      };
+    }
+
+    case 'cancel_appointment': {
+      const aptId =
+        String(args.appointmentId ?? '') ||
+        store.appointments.find((a) => a.callId === call.id && a.status !== 'cancelled')?.id;
+      if (!aptId) return { ok: false, note: 'No appointment found to cancel.' };
+      const result = await cancelAppointment(aptId, agent);
+      if (!result.ok) return { ok: false, note: 'Could not cancel. Offer a callback.' };
+      return { ok: true, cancelled: true, appointmentId: aptId };
     }
 
     case 'request_human': {

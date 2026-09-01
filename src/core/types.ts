@@ -17,6 +17,8 @@ export interface Organization {
   createdAt: ISODateTime;
   /** Simple plan flag; billing/metering lives on top of this later. */
   plan: 'trial' | 'starter' | 'pro' | 'scale';
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
 }
 
 export type Role = 'owner' | 'admin' | 'member';
@@ -71,7 +73,7 @@ export interface Invitation {
 export interface Integration {
   id: ID;
   orgId: ID;
-  type: 'google_calendar' | 'outlook_calendar' | 'calcom' | 'hubspot';
+  type: 'google_calendar' | 'outlook_calendar' | 'calcom' | 'hubspot' | 'stripe';
   /** Provider-specific config/credentials (e.g. refreshToken, calendarId). */
   config: Record<string, string>;
   /** Optional: scope this integration to a single agent. */
@@ -266,6 +268,7 @@ export interface Lead {
 export interface Appointment {
   id: ID;
   orgId: ID;
+  agentId?: ID;
   callId?: ID;
   leadId?: ID;
   service: string;
@@ -274,6 +277,12 @@ export interface Appointment {
   status: 'booked' | 'rescheduled' | 'cancelled';
   timezone: string;
   createdAt: ISODateTime;
+  /** Provider calendar event id (Google/Outlook/Cal.com). */
+  externalId?: string;
+  attendeeEmail?: string;
+  attendeePhone?: string;
+  attendeeName?: string;
+  confirmationSentAt?: ISODateTime;
 }
 
 /** An outbound webhook subscription. */
@@ -293,8 +302,11 @@ export type PlatformEventType =
   | 'call.completed'
   | 'lead.qualified'
   | 'appointment.booked'
+  | 'appointment.rescheduled'
+  | 'appointment.cancelled'
   | 'call.transferred'
-  | 'voicemail.left';
+  | 'voicemail.left'
+  | 'billing.updated';
 
 export interface PlatformEvent<T = unknown> {
   id: ID;

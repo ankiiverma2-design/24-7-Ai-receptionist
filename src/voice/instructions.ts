@@ -21,7 +21,7 @@ export function buildInstructions(agent: Agent): string {
     '- Never invent facts about the business. Use the lookup_faq tool for factual questions; if it returns no answer, say you are not certain and offer to take a message or transfer.',
     '- As soon as you learn the caller name, phone, email, intent, or requested service, call capture_lead to save it.',
     def.booking.enabled
-      ? `- To schedule, call get_availability, offer a couple of options, then call book_appointment after the caller confirms. Services: ${services}.`
+      ? `- To schedule, call get_availability, offer a couple of options, then call book_appointment after the caller confirms. Services: ${services}. To move an existing booking, call reschedule_appointment; to drop it, call cancel_appointment.`
       : '- Appointment booking is disabled for this agent; take a message instead.',
     '- If the caller is upset, has an emergency, or asks for a person, call request_human.',
     '',
